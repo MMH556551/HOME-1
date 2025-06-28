@@ -1,0 +1,1410 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Budget Buddy</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Light blue-gray background */
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            background-color: white;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); /* Deeper, softer shadow */
+            border-radius: 24px; /* More pronounced rounded corners */
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            position: relative; /* Crucial for absolute positioning of input area */
+        }
+        .main-content {
+            padding: 1.5rem;
+            flex-grow: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            /* Adjust padding-bottom to account for the always-visible fixed input area */
+            padding-bottom: calc(1.5rem + 72px); /* Base padding + approximate height of the compact input bar */
+        }
+        .page { /* General page styles */
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+            height: 100%;
+        }
+        .page.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Message Box */
+        .message-box {
+            padding: 0.75rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+            font-weight: 600;
+            text-align: center;
+            color: white;
+            position: fixed; /* Fixed position */
+            top: 20px; /* From top */
+            left: 50%; /* Center horizontally */
+            transform: translateX(-50%); /* Adjust to true center */
+            z-index: 1001; /* Above modals */
+            width: 90%; /* Max width */
+            max-width: 350px; /* Limit max width */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .message-success { background-color: #22c55e; } /* Green */
+        .message-error { background-color: #ef4444; } /* Red */
+        .message-info { background-color: #3b82f6; } /* Blue */
+
+        /* User ID Badge (inside modal) */
+        .user-id-badge {
+            background-color: #fef3c7; /* Light yellow */
+            border: 1px solid #fbbf24;
+            padding: 0.6rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #d97706; /* Darker yellow/orange */
+            word-break: break-all;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            max-width: 90%;
+            width: 400px; /* Fixed width for larger screens */
+            position: relative;
+            animation: zoomIn 0.3s ease-out;
+            overflow-y: auto; /* Enable scroll for content if it overflows */
+            max-height: 90vh; /* Limit modal height */
+        }
+        @keyframes zoomIn {
+            from { transform: scale(0.9); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .modal-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 1.8rem;
+            color: #9ca3af; /* Gray */
+            cursor: pointer;
+            transition: color 0.2s;
+            z-index: 1; /* Ensure it's above other elements in the input area */
+        }
+        .modal-close-btn:hover {
+            color: #4b5563; /* Darker gray */
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: space-around;
+            gap: 15px;
+            margin-top: 1.5rem;
+        }
+        .modal-btn {
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.2s;
+            flex-grow: 1;
+            border: none;
+        }
+        .modal-confirm { background-color: #22c55e; color: white; }
+        .modal-confirm:hover { background-color: #16a34a; transform: translateY(-1px); }
+        .modal-cancel { background-color: #e2e8f0; color: #4b5563; }
+        .modal-cancel:hover { background-color: #cbd5e0; transform: translateY(-1px); }
+
+        /* Top Right Settings Button */
+        .top-right-settings-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-image: linear-gradient(to right, #60a5fa 0%, #3b82f6 100%); /* A softer blue gradient */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            z-index: 990; /* Higher than nav-bar/input area */
+            border: none;
+        }
+        .top-right-settings-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+        }
+        /* Adjust for max-width of app-container (for desktop view) */
+        @media (min-width: 480px) {
+            .top-right-settings-btn {
+                right: calc(50% - (480px / 2) + 20px);
+            }
+        }
+
+        /* Dashboard Specific Styles */
+        .budget-circle-container {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 2rem auto;
+        }
+        .budget-circle-svg {
+            transform: rotate(-90deg); /* Start from top */
+        }
+        .budget-circle-bg {
+            stroke: #e2e8f0; /* Light gray background for circle */
+            stroke-width: 15;
+            fill: none;
+        }
+        .budget-circle-progress {
+            stroke: #3b82f6; /* Blue for progress */
+            stroke-width: 15;
+            fill: none;
+            transition: stroke-dashoffset 0.5s ease-in-out, stroke 0.5s ease-in-out;
+            stroke-linecap: round; /* Rounded ends for progress bar */
+        }
+        .budget-circle-progress.warning {
+            stroke: #f59e0b; /* Amber for warning */
+        }
+        .budget-circle-progress.danger {
+            stroke: #ef4444; /* Red for danger */
+        }
+        .budget-circle-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #1f2937; /* Dark gray text */
+        }
+        .budget-remaining {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .budget-remaining-label {
+            font-size: 0.9rem;
+            color: #64748b; /* Slate gray */
+        }
+        .dashboard-summary-cards {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .summary-card-small {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            text-align: center;
+        }
+        .summary-card-small.income { background-color: #ecfdf5; border: 1px solid #a7f3d0; } /* Light green */
+        .summary-card-small.expense { background-color: #fef2f2; border: 1px solid #fecaca; } /* Light red */
+        .summary-card-small p { margin: 0; font-size: 0.85rem; color: #475569; }
+        .summary-card-small .amount { font-size: 1.2rem; font-weight: 700; margin-top: 0.25rem; }
+        .summary-card-small .amount.income-color { color: #059669; } /* Dark green */
+        .summary-card-small .amount.expense-color { color: #dc2626; } /* Dark red */
+
+        /* Transaction List Item styles */
+        .transaction-list-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            background-color: white;
+            border-radius: 12px;
+            margin-bottom: 0.75rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease-in-out;
+        }
+        .transaction-list-item:hover {
+            transform: translateY(-2px);
+        }
+        .transaction-icon-container {
+            width: 40px;
+            height: 40px;
+            min-width: 40px; /* Ensure fixed size */
+            min-height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2rem;
+            color: white;
+            margin-right: 1rem;
+        }
+        .transaction-icon-container.income { background-color: #22c55e; } /* Green */
+        .transaction-icon-container.expense { background-color: #ef4444; } /* Red */
+        .transaction-details-content {
+            flex-grow: 1;
+        }
+        .transaction-details-content h4 {
+            font-weight: 600;
+            color: #1f2937;
+            margin: 0;
+            font-size: 1rem;
+        }
+        .transaction-details-content p {
+            font-size: 0.8rem;
+            color: #64748b;
+            margin: 0;
+            margin-top: 2px;
+        }
+        .transaction-amount-display {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-left: 1rem;
+        }
+        .transaction-amount-display.income { color: #059669; }
+        .transaction-amount-display.expense { color: #dc2626; }
+        
+        .transaction-delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin-left: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .transaction-delete-btn:hover {
+            transform: scale(1.1);
+        }
+
+        /* Add Transaction Area Styles (slides up) - Now functions as the compact input bar */
+        .fixed-input-area {
+            position: absolute;
+            bottom: 0; /* Placed at the very bottom */
+            left: 1.5rem; /* Add horizontal padding */
+            right: 1.5rem; /* Add horizontal padding */
+            background-color: rgba(255, 255, 255, 0.95); /* Slightly translucent white */
+            backdrop-filter: blur(8px); /* Blur effect */
+            -webkit-backdrop-filter: blur(8px); /* Safari support */
+            padding: 0.75rem; /* Reduced padding */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Softer shadow */
+            border-top-left-radius: 16px; /* Rounded top corners for the bar */
+            border-top-right-radius: 16px;
+            z-index: 950; /* Above main content */
+            /* No transform/opacity/pointer-events control here as it's always visible */
+            max-height: fit-content; /* Adjust height to content */
+            overflow: hidden; /* Hide overflow */
+            display: flex; /* Flexbox for internal layout */
+            align-items: center; /* Vertically align items */
+            justify-content: space-between; /* Space out items */
+            height: 72px; /* Fixed height for the bar */
+        }
+        
+        /* Form within the compact input area */
+        .fixed-input-area form {
+            display: flex;
+            align-items: center;
+            flex-grow: 1; /* Allow form to take available space */
+            gap: 0.5rem; /* Space between elements */
+        }
+
+        /* Compact Input Field Styles */
+        .compact-input {
+            border: none;
+            background-color: transparent;
+            font-size: 1rem; /* Smaller font for general inputs */
+            padding: 0.25rem 0.5rem;
+            outline: none;
+            flex-shrink: 0; /* Prevent shrinking by default */
+            color: #1f2937; /* Darker text */
+        }
+        .compact-input::placeholder {
+            color: #94a3b8; /* Lighter placeholder */
+        }
+        .compact-input:focus {
+            /* No special focus style for this minimalist design unless specified */
+        }
+
+        /* Specific style for Name input - takes most space */
+        .name-compact-input {
+            flex-grow: 1; /* Allow name input to grow */
+            min-width: 50px; /* Minimum width for name input */
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0; /* Underline effect */
+            transition: border-color 0.2s;
+        }
+        .name-compact-input:focus {
+            border-color: #3b82f6; /* Blue underline on focus */
+        }
+
+        /* Specific style for Amount input */
+        .amount-compact-input {
+            width: 80px; /* Fixed width for amount, adjust as needed */
+            text-align: right;
+            font-weight: 600; /* Bolder amount text */
+            padding-right: 0; /* No right padding */
+            border-bottom: 2px solid #e2e8f0; /* Underline effect */
+            transition: border-color 0.2s;
+        }
+        .amount-compact-input:focus {
+            border-color: #3b82f6; /* Blue underline on focus */
+        }
+
+        /* Vertical Separator */
+        .input-separator {
+            width: 2px;
+            height: 24px; /* Height of the separator */
+            background-color: #e2e8f0; /* Light gray separator */
+            border-radius: 1px;
+            flex-shrink: 0;
+            margin: 0 0.5rem; /* Space around separator */
+        }
+
+        /* Small, Integrated Type Toggle (new design) */
+        .transaction-type-toggle-compact {
+            display: flex;
+            border-radius: 9999px; /* Pill shape */
+            overflow: hidden;
+            flex-shrink: 0; /* Don't shrink */
+            margin-right: 0.5rem; /* Space before name input */
+            background-color: #e2e8f0; /* Background for toggle container */
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+        .toggle-btn-compact {
+            padding: 0.3rem 0.6rem; /* Smaller padding */
+            border-radius: 9999px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            text-align: center;
+            font-size: 0.75rem; /* Smaller font */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            color: #64748b; /* Default text color */
+        }
+        .toggle-btn-compact i {
+            font-size: 0.8rem; /* Smaller icon */
+            transition: color 0.2s ease-in-out;
+        }
+        .toggle-btn-compact.active {
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            color: #1f2937; /* Darker text for active */
+        }
+        /* Specific colors for active compact toggle buttons */
+        .toggle-btn-compact[data-type="expense"].active {
+            color: #dc2626; /* Red for active expense */
+        }
+        .toggle-btn-compact[data-type="income"].active {
+            color: #059669; /* Green for active income */
+        }
+
+
+        /* Submit FAB (main floating button) */
+        .submit-fab {
+            width: 48px; /* Slightly smaller FAB */
+            height: 48px;
+            border-radius: 50%;
+            background-image: linear-gradient(to right, #22c55e 0%, #16a34a 100%); /* Green gradient for submit */
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem; /* Adjusted plus icon size */
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border: none;
+            flex-shrink: 0; /* Don't shrink */
+        }
+        .submit-fab:hover {
+            transform: translateY(-1px) scale(1.02); /* Slight lift and scale */
+            box-shadow: 0 5px 12px rgba(0, 0, 0, 0.3);
+        }
+        .submit-fab:active {
+            transform: translateY(0) scale(0.98);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        /* History Page specific styles */
+        .history-filters {
+            padding: 1rem;
+            background-color: #f1f5f9; /* Light gray-blue */
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        .history-filters label {
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 0.5rem;
+        }
+        .history-filters select, .history-filters input {
+            margin-bottom: 0.75rem; /* Adjust spacing */
+        }
+        .history-transactions-list {
+            min-height: 100px; /* Ensure some height for empty state */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="main-content">
+            <!-- Message Box -->
+            <div id="messageBox" class="message-box hidden"></div>
+
+            <!-- Dashboard Page -->
+            <div id="dashboardPage" class="page active">
+                <!-- Budget Circle Visual -->
+                <div class="budget-circle-container">
+                    <svg class="budget-circle-svg" width="200" height="200" viewBox="0 0 100 100">
+                        <circle cx="50" cy="50" r="42" class="budget-circle-bg"></circle>
+                        <circle cx="50" cy="50" r="42" class="budget-circle-progress" id="budgetProgressBar" stroke-dasharray="264" stroke-dashoffset="264"></circle>
+                    </svg>
+                    <div class="budget-circle-text">
+                        <p class="budget-remaining" id="remainingBudgetDisplay">0</p>
+                        <p class="budget-remaining-label">ကျန်ငွေ</p>
+                    </div>
+                </div>
+
+                <!-- Summary Cards for Income & Expenses -->
+                <div class="dashboard-summary-cards">
+                    <div class="summary-card-small income">
+                        <p>စုစုပေါင်း ဝင်ငွေ</p>
+                        <p class="amount income-color" id="totalIncomeDisplay">0</p>
+                    </div>
+                    <div class="summary-card-small expense">
+                        <p>စုစုပေါင်း ထွက်ငွေ</p>
+                        <p class="amount expense-color" id="totalExpensesDisplay">0</p>
+                    </div>
+                </div>
+
+                <!-- Current Month Display -->
+                <p class="text-center text-gray-600 font-semibold mt-4 mb-6">
+                    <span id="currentMonthDisplay"></span> လ စာရင်း
+                </p>
+
+                <!-- Removed Daily/Monthly Summary Buttons as per user request -->
+                <!--
+                <div class="summary-action-buttons">
+                    <button id="dailySummaryViewBtn" class="summary-action-btn">
+                        <i class="fas fa-calendar-day icon"></i>
+                        <span class="text">နေ့စဉ်</span>
+                    </button>
+                    <button id="monthlySummaryViewBtn" class="summary-action-btn">
+                        <i class="fas fa-calendar-alt icon"></i>
+                        <span class="text">လစဉ်</span>
+                    </button>
+                </div>
+                -->
+
+            </div>
+
+            <!-- History Page (Still exists, but not accessible via nav buttons) -->
+            <div id="historyPage" class="page">
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">မှတ်တမ်းအားလုံး</h2>
+
+                <!-- Filters -->
+                <div class="history-filters space-y-3 mb-6">
+                    <div>
+                        <label for="historyMonthFilter" class="block text-gray-700 text-sm font-semibold mb-1">လ:</label>
+                        <select id="historyMonthFilter" class="form-input">
+                            <option value="all">အားလုံး</option>
+                            <option value="0">ဇန်နဝါရီ</option>
+                            <option value="1">ဖေဖော်ဝါရီ</option>
+                            <option value="2">မတ်</option>
+                            <option value="3">ဧပြီ</option>
+                            <option value="4">မေ</option>
+                            <option value="5">ဇွန်</option>
+                            <option value="6">ဇူလိုင်</option>
+                            <option value="7">ဩဂုတ်</option>
+                            <option value="8">စက်တင်ဘာ</option>
+                            <option value="9">အောက်တိုဘာ</option>
+                            <option value="10">နိုဝင်ဘာ</option>
+                            <option value="11">ဒီဇင်ဘာ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="historyYearFilter" class="block text-gray-700 text-sm font-semibold mb-1">နှစ်:</label>
+                        <select id="historyYearFilter" class="form-input"></select>
+                    </div>
+                    <div>
+                        <label for="historyTypeFilter" class="block text-gray-700 text-sm font-semibold mb-1">အမျိုးအစား:</label>
+                        <select id="historyTypeFilter" class="form-input">
+                            <option value="all">အားလုံး</option>
+                            <option value="expense">ထွက်ငွေ</option>
+                            <option value="income">ဝင်ငွေ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="historySearchInput" class="block text-gray-700 text-sm font-semibold mb-1">ရှာဖွေရန်:</label>
+                        <input type="text" id="historySearchInput" class="form-input" placeholder="အမည်ဖြင့် ရှာဖွေပါ">
+                    </div>
+                </div>
+
+                <div id="transactionsList" class="space-y-3 history-transactions-list">
+                    <p class="text-gray-500 text-center">မှတ်တမ်းများ မရှိသေးပါ။</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Transaction Input Area (Always visible, at the bottom) -->
+        <div id="transactionInputArea" class="fixed-input-area">
+            <form id="transactionForm" class="flex items-center w-full h-full">
+                <!-- Compact Type Toggle (Income/Expense) -->
+                <div class="transaction-type-toggle-compact">
+                    <button type="button" id="toggleExpenseBtn" class="toggle-btn-compact active" data-type="expense">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button type="button" id="toggleIncomeBtn" class="toggle-btn-compact" data-type="income">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <input type="text" id="transactionName" class="compact-input name-compact-input" placeholder="အမည်" required>
+                <div class="input-separator"></div> <!-- Visual separator -->
+                <input type="number" id="transactionAmount" class="compact-input amount-compact-input" placeholder="0" step="1" required>
+                
+                <!-- Submit Button - integrated into the bar -->
+                <button type="submit" form="transactionForm" id="submitFab" class="submit-fab">
+                    <i class="fas fa-plus"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Top Right Settings Button -->
+    <button id="topRightSettingsBtn" class="top-right-settings-btn" title="ချိန်ညှိချက်များ">
+        <i class="fas fa-cog"></i>
+    </button>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="hideConfirmModal()">&times;</button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4">အတည်ပြုပါ</h3>
+            <p id="confirmMessage" class="text-gray-700 mb-6">ဤမှတ်တမ်းကို ဖျက်လိုပါသလား။ ဤလုပ်ဆောင်ချက်ကို ပြန်ဖျက်၍ မရနိုင်ပါ။</p>
+            <div class="modal-actions">
+                <button id="confirmDeleteActionBtn" class="modal-btn modal-confirm">ဖျက်မည်</button>
+                <button id="cancelDeleteActionBtn" class="modal-btn modal-cancel">မဖျက်တော့ပါ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="hideSettingsModal()">&times;</button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4">ချိန်ညှိချက်များ</h3>
+            <div class="mb-6">
+                <p class="text-gray-700 mb-2">လက်ရှိ ID:</p>
+                <p id="settingsCurrentUserId" class="user-id-badge text-base py-2">Loading...</p>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label for="newCustomIdInput" class="form-label text-gray-700 text-sm font-semibold mb-2">ကိုယ်ပိုင် ID အသစ် သတ်မှတ်ရန် (မျှဝေရန်):</label>
+                    <input type="text" id="newCustomIdInput" class="form-input" placeholder="ထူးခြားသော ID (ဥပမာ: myfamilybudget)" required>
+                    <p class="text-xs text-gray-500 mt-1">ID တွင် အက္ခရာ၊ ဂဏန်း၊ dash (-) နှင့် underscore (_) သာ ပါဝင်နိုင်ပါသည်။</p>
+                </div>
+                <button id="saveCustomIdBtn" class="btn-primary">ID သိမ်းမည်</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Summary Modal (Still exists, but not accessible directly) -->
+    <div id="dailySummaryModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="hideDailySummaryModal()">&times;</button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4">နေ့စဉ် စာရင်းချုပ်</h3>
+            <input type="date" id="dailySummaryDatePicker" class="form-input mb-4">
+            <div class="flex justify-between items-center text-lg font-semibold mb-2">
+                <p>ဝင်ငွေ:</p>
+                <p id="dailyIncomeDisplay" class="text-green-600">0</p>
+            </div>
+            <div class="flex justify-between items-center text-lg font-semibold mb-2">
+                <p>ထွက်ငွေ:</p>
+                <p id="dailyExpenseDisplay" class="text-red-600">0</p>
+            </div>
+            <div class="flex justify-between items-center text-xl font-bold border-t pt-2 mt-2">
+                <p>လက်ကျန်:</p>
+                <p id="dailyNetBalanceDisplay" class="text-blue-600">0</p>
+            </div>
+            <h4 class="text-lg font-bold text-gray-700 mt-6 mb-3 text-left">မှတ်တမ်းများ:</h4>
+            <div id="dailyTransactionsSummaryList" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <p class="text-gray-500 text-center">ဤနေ့အတွက် မှတ်တမ်းများ မရှိသေးပါ။</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Summary Modal (Still exists, but not accessible directly) -->
+    <div id="monthlySummaryModalOverlay" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close-btn" onclick="hideMonthlySummaryModal()">&times;</button>
+            <h3 class="text-xl font-bold text-gray-800 mb-4">လစဉ် စာရင်းချုပ်</h3>
+            <div class="flex gap-4 mb-4">
+                <select id="monthlySummaryMonthPicker" class="form-input flex-1">
+                    <option value="0">ဇန်နဝါရီ</option> <option value="1">ဖေဖော်ဝါရီ</option>
+                    <option value="2">မတ်</option> <option value="3">ဧပြီ</option>
+                    <option value="4">မေ</option> <option value="5">ဇွန်</option>
+                    <option value="6">ဇူလိုင်</option> <option value="7">ဩဂုတ်</option>
+                    <option value="8">စက်တင်ဘာ</option> <option value="9">အောက်တိုဘာ</option>
+                    <option value="10">နိုဝင်ဘာ</option> <option value="11">ဒီဇင်ဘာ</option>
+                </select>
+                <select id="monthlySummaryYearPicker" class="form-input flex-1"></select>
+            </div>
+            <div class="flex justify-between items-center text-lg font-semibold mb-2">
+                <p>ဝင်ငွေ:</p>
+                <p id="monthlyIncomeDisplay" class="text-green-600">0</p>
+            </div>
+            <div class="flex justify-between items-center text-lg font-semibold mb-2">
+                <p>ထွက်ငွေ:</p>
+                <p id="monthlyExpenseDisplay" class="text-red-600">0</p>
+            </div>
+            <div class="flex justify-between items-center text-xl font-bold border-t pt-2 mt-2">
+                <p>လက်ကျန်:</p>
+                <p id="monthlyNetBalanceDisplay" class="text-blue-600">0</p>
+            </div>
+            <h4 class="text-lg font-bold text-gray-700 mt-6 mb-3 text-left">မှတ်တမ်းများ:</h4>
+            <div id="monthlyTransactionsSummaryList" class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                <p class="text-gray-500 text-center">ဤလအတွက် မှတ်တမ်းများ မရှိသေးပါ။</p>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="module">
+        // Console log for script loading status
+        console.log("Script loaded and starting...");
+
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration (Using your provided config)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCR_a0RKOVIrxHHWB0qSguAR_bVjAVsG98",
+            authDomain: "home-c3072.firebaseapp.com",
+            projectId: "home-c3072", // This will be used as appId
+            storageBucket: "home-c3072.firebasestorage.app",
+            messagingSenderId: "245129049550",
+            appId: "1:245129049550:web:aee02886532c909d6d279f",
+            measurementId: "G-B5GD7JCE6H"
+        };
+
+        // Get initialAuthToken from Canvas Environment
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        // Set appId from firebaseConfig.projectId
+        const appId = firebaseConfig.projectId;
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        let firebaseAuthUid = null;
+        let activeDataId = null;
+        let unsubscribeFromEntries = null;
+        let allEntries = []; // Stores all transactions (income/expense)
+
+        // --- DOM Elements ---
+        const messageBox = document.getElementById('messageBox');
+        const topRightSettingsBtn = document.getElementById('topRightSettingsBtn');
+
+        // Pages
+        const dashboardPage = document.getElementById('dashboardPage');
+        const historyPage = document.getElementById('historyPage'); // History page is still in HTML, but no direct nav to it.
+
+        // Dashboard Elements
+        const budgetProgressBar = document.getElementById('budgetProgressBar');
+        const remainingBudgetDisplay = document.getElementById('remainingBudgetDisplay');
+        const totalIncomeDisplay = document.getElementById('totalIncomeDisplay');
+        const totalExpensesDisplay = document.getElementById('totalExpensesDisplay');
+        const currentMonthDisplay = document.getElementById('currentMonthDisplay');
+        const dailySummaryViewBtn = document.getElementById('dailySummaryViewBtn');
+        const monthlySummaryViewBtn = document.getElementById('monthlySummaryViewBtn'); // Removed from HTML
+
+        // New Transaction Input Area Elements
+        const transactionInputArea = document.getElementById('transactionInputArea');
+        const submitFab = document.getElementById('submitFab'); 
+
+        // Add Transaction Form Elements
+        const transactionForm = document.getElementById('transactionForm');
+        const toggleExpenseBtn = document.getElementById('toggleExpenseBtn');
+        const toggleIncomeBtn = document.getElementById('toggleIncomeBtn');
+        let currentTransactionType = 'expense'; // Default type for new transaction
+
+        const transactionNameInput = document.getElementById('transactionName');
+        const transactionAmountInput = document.getElementById('transactionAmount');
+
+        // History Page Elements
+        const historyMonthFilter = document.getElementById('historyMonthFilter');
+        const historyYearFilter = document.getElementById('historyYearFilter');
+        const historyTypeFilter = document.getElementById('historyTypeFilter');
+        const historySearchInput = document.getElementById('historySearchInput');
+        const transactionsList = document.getElementById('transactionsList'); // List for history transactions
+
+        // Modals
+        const confirmModalOverlay = document.getElementById('confirmModalOverlay');
+        const confirmMessage = document.getElementById('confirmMessage');
+        const confirmDeleteActionBtn = document.getElementById('confirmDeleteActionBtn');
+        const cancelDeleteActionBtn = document.getElementById('cancelDeleteActionBtn');
+        let transactionToDeleteId = null; // Stores ID of transaction to delete
+
+        const settingsModalOverlay = document.getElementById('settingsModalOverlay');
+        const settingsCurrentUserId = document.getElementById('settingsCurrentUserId');
+        const newCustomIdInput = document.getElementById('newCustomIdInput');
+        const saveCustomIdBtn = document.getElementById('saveCustomIdBtn');
+        const cancelSettingsModalBtn = document.querySelector('#settingsModalOverlay .modal-close-btn');
+
+        const dailySummaryModalOverlay = document.getElementById('dailySummaryModalOverlay');
+        const dailySummaryDatePicker = document.getElementById('dailySummaryDatePicker');
+        const dailyIncomeDisplay = document.getElementById('dailyIncomeDisplay');
+        const dailyExpenseDisplay = document.getElementById('dailyExpenseDisplay');
+        const dailyNetBalanceDisplay = document.getElementById('dailyNetBalanceDisplay');
+        const dailyTransactionsSummaryList = document.getElementById('dailyTransactionsSummaryList');
+
+        const monthlySummaryModalOverlay = document.getElementById('monthlySummaryModalOverlay');
+        const monthlySummaryMonthPicker = document.getElementById('monthlySummaryMonthPicker');
+        const monthlySummaryYearPicker = document.getElementById('monthlySummaryYearPicker');
+        const monthlyIncomeDisplay = document.getElementById('monthlyIncomeDisplay');
+        const monthlyExpenseDisplay = document.getElementById('monthlyExpenseDisplay');
+        const monthlyNetBalanceDisplay = document.getElementById('monthlyNetBalanceDisplay');
+        const monthlyTransactionsSummaryList = document.getElementById('monthlyTransactionsSummaryList');
+        const cancelDailyModalBtn = document.querySelector('#dailySummaryModalOverlay .modal-close-btn');
+        const cancelMonthlyModalBtn = document.querySelector('#monthlySummaryModalOverlay .modal-close-btn');
+
+        // --- Utility Functions ---
+        function showMessage(message, type = 'info') {
+            messageBox.textContent = message;
+            messageBox.className = `message-box ${type}`; // Reset classes and add new type
+            messageBox.classList.remove('hidden');
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Function to format numbers with commas and no decimal places
+        function formatAmount(amount) {
+            // Ensure amount is a number and round it
+            const num = Math.round(Number(amount));
+            // Use toLocaleString for comma separation
+            return num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+
+        // Function to get today's date in IHDA-MM-DD format
+        function getTodayDateString() {
+            const today = new Date();
+            const year = today.getFullYear();
+            const month = String(today.getMonth() + 1).padStart(2, '0');
+            const day = String(today.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        // This function is still needed for summary date pickers
+        function setDateForPicker(datePickerElement, dateString) {
+            datePickerElement.value = dateString;
+        }
+
+        function populateYearFiltersAndPicker() {
+            const currentYear = new Date().getFullYear();
+            const startYear = currentYear - 5; // Show current year and 5 past years
+            const endYear = currentYear + 1; // Allow for next year
+
+            // Clear existing options
+            historyYearFilter.innerHTML = '';
+            monthlySummaryYearPicker.innerHTML = '';
+
+            // Add "All" option for history filter
+            const allOptionHistory = document.createElement('option');
+            allOptionHistory.value = 'all';
+            allOptionHistory.textContent = 'အားလုံး';
+            historyYearFilter.appendChild(allOptionHistory);
+
+            for (let i = startYear; i <= endYear; i++) {
+                const optionHistory = document.createElement('option');
+                optionHistory.value = i;
+                optionHistory.textContent = i;
+                historyYearFilter.appendChild(optionHistory);
+
+                const optionMonthly = document.createElement('option');
+                optionMonthly.value = i;
+                optionMonthly.textContent = i;
+                monthlySummaryYearPicker.appendChild(optionMonthly);
+            }
+            // Set current year as default
+            historyYearFilter.value = currentYear;
+            monthlySummaryYearPicker.value = currentYear;
+        }
+
+        // --- Firebase Authentication & Data Loading ---
+        onAuthStateChanged(auth, async (user) => {
+            console.log("onAuthStateChanged fired. User:", user ? user.uid : "null");
+            try { // Add try-catch around the entire onAuthStateChanged logic
+                if (user) {
+                    firebaseAuthUid = user.uid;
+                    const userProfileRef = doc(db, `artifacts/${appId}/users/${firebaseAuthUid}/settings`, 'profile');
+                    try { // Separate try-catch for profile loading
+                        const profileSnap = await getDoc(userProfileRef);
+                        if (profileSnap.exists() && profileSnap.data().customId) {
+                            activeDataId = profileSnap.data().customId;
+                            settingsCurrentUserId.textContent = activeDataId;
+                            showMessage(`ID '${activeDataId}' ကို အသုံးပြုပါသည်။`, "info");
+                        } else {
+                            activeDataId = firebaseAuthUid; // Fallback to Firebase UID
+                            settingsCurrentUserId.textContent = activeDataId;
+                            showMessage("ကျေးဇူးပြု၍ ကိုယ်ပိုင် ID တစ်ခု သတ်မှတ်ပါ။", "info");
+                        }
+                    } catch (profileError) {
+                        console.error("Error loading custom ID from Firestore: ", profileError);
+                        activeDataId = firebaseAuthUid; // Always fallback to Firebase UID on profile error
+                        settingsCurrentUserId.textContent = activeDataId;
+                        showMessage("ကိုယ်ပိုင် ID ရယူရာတွင် အမှားဖြစ်ပွားပါသည်။", "error");
+                    }
+                    loadTransactionsForActiveId();
+                } else {
+                    // User is signed out or first visit
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            showMessage("Authentication အောင်မြင်ပါသည်။", "success");
+                        } else {
+                            await signInAnonymously(auth);
+                            showMessage("အမည်မသိအသုံးပြုသူအဖြစ် ဝင်ရောက်ပါသည်။", "info");
+                        }
+                        // The `onAuthStateChanged` listener will re-trigger with the new user object after successful sign-in.
+                    } catch (signInError) {
+                        console.error("Firebase authentication (sign-in) error: ", signInError);
+                        showMessage(`Authentication အမှား: ${signInError.message}`, "error");
+                        // If sign-in fails, use a random UID as a last resort for local app functionality
+                        firebaseAuthUid = crypto.randomUUID();
+                        activeDataId = firebaseAuthUid;
+                        settingsCurrentUserId.textContent = activeDataId;
+                    }
+                }
+                // These run after auth state is determined/attempted
+                populateYearFiltersAndPicker();
+                historyMonthFilter.value = 'all';
+                historyYearFilter.value = new Date().getFullYear();
+                historyTypeFilter.value = 'all';
+                monthlySummaryMonthPicker.value = new Date().getMonth();
+            } catch (criticalError) {
+                console.error("Critical error in onAuthStateChanged callback: ", criticalError);
+                showMessage("အက်ပလီကေးရှင်း စတင်ရာတွင် ပြဿနာရှိပါသည်။", "error");
+            }
+        });
+
+        function loadTransactionsForActiveId() {
+            console.log("loadTransactionsForActiveId called. Active Data ID:", activeDataId);
+            if (unsubscribeFromEntries) {
+                unsubscribeFromEntries();
+            }
+            if (!activeDataId) {
+                transactionsList.innerHTML = '<p class="text-gray-500 text-center">မှတ်တမ်းများ မရှိသေးပါ။ (ID မရှိသေးပါ)</p>';
+                updateDashboard(); // Ensure dashboard is updated correctly
+                return;
+            }
+
+            const entriesCollectionRef = collection(db, `artifacts/${appId}/users/${activeDataId}/entries`);
+            unsubscribeFromEntries = onSnapshot(entriesCollectionRef, (snapshot) => {
+                allEntries = [];
+                snapshot.forEach((doc) => {
+                    allEntries.push({ id: doc.id, ...doc.data() });
+                });
+                allEntries.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort by creation time
+
+                updateDashboard(); // Update dashboard with current month's data
+                filterAndDisplayHistoryTransactions(); // Update history page
+
+                // Update summary modals if open
+                if (dailySummaryModalOverlay.style.display === 'flex') {
+                    calculateAndDisplayDailySummary(dailySummaryDatePicker.value);
+                }
+                if (monthlySummaryModalOverlay.style.display === 'flex') {
+                    calculateAndDisplayMonthlySummary(monthlySummaryYearPicker.value, monthlySummaryMonthPicker.value);
+                }
+            }, (error) => {
+                console.error("Error getting entries from Firestore: ", error);
+                showMessage("မှတ်တမ်းများ ရယူရာတွင် အမှားဖြစ်ပွားပါသည်။", "error");
+            });
+        }
+
+        // --- Page Navigation (Simplified - Only Dashboard shown) ---
+        // This function now only sets the 'active' class for the specified page.
+        // There are no navigation buttons to call this with for switching pages.
+        window.showPage = function(pageId) { // Removed clickedButton parameter
+            console.log(`Activating page: ${pageId}`);
+            document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+
+            // Re-render relevant data for the activated page
+            if (pageId === 'historyPage') {
+                filterAndDisplayHistoryTransactions();
+            } else if (pageId === 'dashboardPage') {
+                updateDashboard();
+            }
+        };
+
+        // --- Dashboard Logic ---
+        function updateDashboard() {
+            const now = new Date();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+
+            const monthNames = ["ဇန်နဝါရီ", "ဖေဖော်ဝါရီ", "မတ်", "ဧပြီ", "မေ", "ဇွန်", "ဇူလိုင်", "ဩဂုတ်", "စက်တင်ဘာ", "အောက်တိုဘာ", "နိုဝင်ဘာ", "ဒီဇင်ဘာ"];
+            currentMonthDisplay.textContent = monthNames[currentMonth];
+
+            let monthlyIncome = 0;
+            let monthlyExpense = 0;
+
+            allEntries.forEach(entry => {
+                const entryDate = new Date(entry.date + 'T00:00:00'); // Ensure date comparison is timezone-safe
+                if (entryDate.getMonth() === currentMonth && entryDate.getFullYear() === currentYear) {
+                    if (entry.type === 'income') {
+                        monthlyIncome += entry.amount;
+                    } else if (entry.type === 'expense') {
+                        monthlyExpense += entry.amount;
+                    }
+                }
+            });
+
+            const remaining = monthlyIncome - monthlyExpense;
+            const totalBudget = 500000; // Example budget, make this configurable later if needed
+
+            // Update displays using formatAmount
+            totalIncomeDisplay.textContent = formatAmount(monthlyIncome);
+            totalExpensesDisplay.textContent = formatAmount(monthlyExpense);
+            remainingBudgetDisplay.textContent = formatAmount(remaining);
+
+            // Update progress bar
+            const radius = 42;
+            const circumference = 2 * Math.PI * radius; // 263.89...
+            
+            let progressPercentage;
+            if (monthlyIncome > 0) {
+                progressPercentage = (monthlyExpense / monthlyIncome) * 100;
+            } else if (totalBudget > 0) {
+                 progressPercentage = (monthlyExpense / totalBudget) * 100;
+            } else {
+                progressPercentage = 0;
+            }
+
+            // Cap percentage at 100% for visual
+            progressPercentage = Math.min(progressPercentage, 100);
+
+
+            const offset = circumference - (progressPercentage / 100) * circumference;
+            budgetProgressBar.style.strokeDashoffset = offset;
+
+            // Change progress bar color based on remaining budget vs. total income/budget
+            budgetProgressBar.classList.remove('warning', 'danger');
+            if (remaining < 0) {
+                budgetProgressBar.classList.add('danger'); // Over budget (negative remaining)
+            } else if ((monthlyIncome > 0 && monthlyExpense > monthlyIncome * 0.8) || (totalBudget > 0 && monthlyExpense > totalBudget * 0.8)) {
+                budgetProgressBar.classList.add('warning');
+            }
+            else {
+                budgetProgressBar.style.stroke = '#3b82f6'; // Default blue
+            }
+            
+            // Ensure remaining budget text color reflects positive/negative
+            remainingBudgetDisplay.classList.remove('text-green-600', 'text-red-600');
+            if (remaining >= 0) {
+                 remainingBudgetDisplay.classList.add('text-green-600');
+            } else {
+                 remainingBudgetDisplay.classList.add('text-red-600');
+            }
+        }
+
+        // --- Add Transaction Logic ---
+        toggleExpenseBtn.addEventListener('click', () => {
+            toggleExpenseBtn.classList.add('active');
+            toggleIncomeBtn.classList.remove('active');
+            currentTransactionType = 'expense';
+        });
+
+        toggleIncomeBtn.addEventListener('click', () => {
+            toggleIncomeBtn.classList.add('active');
+            toggleExpenseBtn.classList.remove('active');
+            currentTransactionType = 'income';
+        });
+
+        transactionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const name = transactionNameInput.value.trim();
+            const amount = Math.round(parseFloat(transactionAmountInput.value)); 
+            const date = getTodayDateString(); 
+            const type = currentTransactionType;
+            const category = ''; // Category is no longer collected
+
+            if (!name || isNaN(amount) || amount <= 0) {
+                showMessage("ကျေးဇူးပြု၍ အချက်အလက်များကို ပြည့်စုံစွာ ဖြည့်စွက်ပါ။", "error");
+                return;
+            }
+            if (!activeDataId) {
+                showMessage("ID သတ်မှတ်ပြီးမှ မှတ်တမ်းထည့်ပါ။", "error");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, `artifacts/${appId}/users/${activeDataId}/entries`), {
+                    type,
+                    name,
+                    amount,
+                    category, // Save empty string for category
+                    date,
+                    createdAt: new Date().toISOString()
+                });
+                showMessage("မှတ်တမ်း အောင်မြင်စွာ ထည့်သွင်းပြီးပါပြီ။", "success");
+                transactionForm.reset();
+                toggleExpenseBtn.classList.add('active'); // Reset to expense after submission
+                toggleIncomeBtn.classList.remove('active');
+                currentTransactionType = 'expense';
+            } catch (error) {
+                console.error("Error adding document to Firestore: ", error);
+                showMessage(`မှတ်တမ်းထည့်သွင်းရာတွင် အမှားဖြစ်ပွား: ${error.message}`, "error");
+            }
+        });
+
+        // --- History Page Logic ---
+        historyMonthFilter.addEventListener('change', filterAndDisplayHistoryTransactions);
+        historyYearFilter.addEventListener('change', filterAndDisplayHistoryTransactions);
+        historyTypeFilter.addEventListener('change', filterAndDisplayHistoryTransactions);
+        historySearchInput.addEventListener('input', filterAndDisplayHistoryTransactions);
+
+        function filterAndDisplayHistoryTransactions() {
+            let filtered = [...allEntries];
+
+            const selectedMonth = historyMonthFilter.value;
+            const selectedYear = historyYearFilter.value;
+            const selectedType = historyTypeFilter.value;
+            const searchQuery = historySearchInput.value.toLowerCase();
+
+            if (selectedMonth !== 'all') {
+                filtered = filtered.filter(entry => new Date(entry.date).getMonth() === parseInt(selectedMonth));
+            }
+            if (selectedYear !== 'all') {
+                filtered = filtered.filter(entry => new Date(entry.date).getFullYear() === parseInt(selectedYear));
+            }
+            if (selectedType !== 'all') {
+                filtered = filtered.filter(entry => entry.type === selectedType);
+            }
+            if (searchQuery) {
+                filtered = filtered.filter(entry =>
+                    (entry.name && entry.name.toLowerCase().includes(searchQuery))
+                );
+            }
+
+            transactionsList.innerHTML = '';
+            if (filtered.length === 0) {
+                transactionsList.innerHTML = '<p class="text-gray-500 text-center">ရှာဖွေမှုနှင့် ကိုက်ညီသော မှတ်တမ်းများ မရှိပါ။</p>';
+            } else {
+                filtered.forEach(entry => {
+                    transactionsList.appendChild(createTransactionListItem(entry, true)); // true for delete button
+                });
+            }
+        }
+
+        function createTransactionListItem(entry, showDeleteBtn) {
+            const listItem = document.createElement('div');
+            listItem.className = 'transaction-list-item';
+            listItem.setAttribute('data-id', entry.id);
+
+            const iconContainer = document.createElement('div');
+            iconContainer.className = `transaction-icon-container ${entry.type}`;
+            const icon = document.createElement('i');
+            icon.className = entry.type === 'income' ? 'fas fa-plus' : 'fas fa-minus'; 
+            iconContainer.appendChild(icon);
+
+            const detailsContent = document.createElement('div');
+            detailsContent.className = 'transaction-details-content';
+            const nameEl = document.createElement('h4');
+            nameEl.textContent = entry.name;
+            const dateCategoryEl = document.createElement('p');
+            const formattedDate = new Date(entry.date + 'T00:00:00').toLocaleDateString('my-MM', { year: 'numeric', month: 'short', day: 'numeric' });
+            dateCategoryEl.textContent = `${formattedDate}`; 
+            detailsContent.appendChild(nameEl);
+            detailsContent.appendChild(dateCategoryEl);
+
+            const amountDisplay = document.createElement('span');
+            amountDisplay.className = `transaction-amount-display ${entry.type}`;
+            amountDisplay.textContent = `${entry.type === 'income' ? '+' : '-'}${formatAmount(entry.amount)}`;
+
+            listItem.appendChild(iconContainer);
+            listItem.appendChild(detailsContent);
+            listItem.appendChild(amountDisplay);
+
+            if (showDeleteBtn) {
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'transaction-delete-btn';
+                deleteButton.innerHTML = '<i class="fas fa-trash-alt"></i>';
+                deleteButton.title = 'ဖျက်မည်';
+                deleteButton.onclick = () => showConfirmModal(entry.id);
+                listItem.appendChild(deleteButton);
+            }
+            return listItem;
+        }
+
+        // --- Confirmation Modal ---
+        function showConfirmModal(id) {
+            transactionToDeleteId = id;
+            confirmModalOverlay.style.display = 'flex';
+        }
+
+        function hideConfirmModal() {
+            confirmModalOverlay.style.display = 'none';
+            transactionToDeleteId = null;
+        }
+
+        confirmDeleteActionBtn.addEventListener('click', async () => {
+            if (transactionToDeleteId && activeDataId) {
+                try {
+                    await deleteDoc(doc(db, `artifacts/${appId}/users/${activeDataId}/entries`, transactionToDeleteId));
+                    showMessage("မှတ်တမ်းကို အောင်မြင်စွာ ဖျက်လိုက်ပါပြီ။", "success");
+                } 
+                catch (error) {
+                    console.error("Error deleting document from Firestore:", error);
+                    showMessage(`မှတ်တမ်းဖျက်ရာတွင် အမှားဖြစ်ပွား: ${error.message}`, "error");
+                } finally {
+                    hideConfirmModal();
+                }
+            }
+        });
+
+        cancelDeleteActionBtn.addEventListener('click', hideConfirmModal);
+
+        // --- Settings Modal ---
+        topRightSettingsBtn.addEventListener('click', () => {
+            if (firebaseAuthUid) {
+                settingsCurrentUserId.textContent = activeDataId || firebaseAuthUid; // Display current ID
+                newCustomIdInput.value = (activeDataId !== firebaseAuthUid) ? activeDataId : ''; // Pre-fill if custom ID exists
+                settingsModalOverlay.style.display = 'flex';
+            } else {
+                showMessage("Authentication မလုပ်ရသေးပါ။ ခဏစောင့်ပါ။", "error");
+            }
+        });
+
+        cancelSettingsModalBtn.addEventListener('click', hideSettingsModal);
+
+        function hideSettingsModal() {
+            settingsModalOverlay.style.display = 'none';
+        }
+
+        saveCustomIdBtn.addEventListener('click', async () => {
+            const newId = newCustomIdInput.value.trim();
+            if (!newId) {
+                showMessage("ကျေးဇူးပြု၍ ကိုယ်ပိုင် ID ထည့်သွင်းပါ။", "error");
+                return;
+            }
+            if (!/^[a-zA-Z0-9_-]+$/.test(newId)) {
+                showMessage("ID တွင် အက္ခရာ၊ ဂဏန်း၊ dash (-) နှင့် underscore (_) သာ ပါဝင်နိုင်ပါသည်။", "error");
+                return;
+            }
+            if (!firebaseAuthUid) {
+                showMessage("Authentication မလုပ်ရသေးပါ။", "error");
+                return;
+            }
+
+            const userProfileRef = doc(db, `artifacts/${appId}/users/${firebaseAuthUid}/settings`, 'profile');
+            try {
+                await setDoc(userProfileRef, { customId: newId });
+                activeDataId = newId;
+                settingsCurrentUserId.textContent = activeDataId;
+                showMessage(`သင်၏ ID ကို '${newId}' အဖြစ် သတ်မှတ်လိုက်ပါပြီ။`, "success");
+                loadTransactionsForActiveId(); // Reload data with new ID path
+                hideSettingsModal();
+            } catch (error) {
+                console.error("Error setting custom ID in Firestore: ", error);
+                showMessage(`ID သတ်မှတ်ရာတွင် အမှားဖြစ်ပွား: ${error.message}`, "error");
+            }
+        });
+
+        // --- Daily Summary Modal Logic ---
+        dailySummaryViewBtn.addEventListener('click', () => {
+            if (!activeDataId) {
+                showMessage("ID သတ်မှတ်ပြီးမှ စာရင်းချုပ် ကြည့်နိုင်ပါသည်။", "error");
+                return;
+            }
+            // Set daily summary date picker to today's date
+            setDateForPicker(dailySummaryDatePicker, getTodayDateString());
+            calculateAndDisplayDailySummary(dailySummaryDatePicker.value);
+            dailySummaryModalOverlay.style.display = 'flex';
+        });
+
+        dailySummaryDatePicker.addEventListener('change', (event) => {
+            calculateAndDisplayDailySummary(event.target.value);
+        });
+        cancelDailyModalBtn.addEventListener('click', hideDailySummaryModal);
+
+        function hideDailySummaryModal() {
+            dailySummaryModalOverlay.style.display = 'none';
+        }
+
+        function calculateAndDisplayDailySummary(dateString) {
+            const selectedDate = new Date(dateString);
+            selectedDate.setHours(0, 0, 0, 0);
+
+            let dailyIncome = 0;
+            let dailyExpense = 0;
+            let dailyTransactions = [];
+
+            allEntries.forEach(entry => {
+                const entryDate = new Date(entry.date + 'T00:00:00'); // Add time component to ensure correct date comparison
+                entryDate.setHours(0, 0, 0, 0);
+
+                if (entryDate.getTime() === selectedDate.getTime()) {
+                    dailyTransactions.push(entry);
+                    if (entry.type === 'income') {
+                        dailyIncome += entry.amount;
+                    } else if (entry.type === 'expense') {
+                        dailyExpense += entry.amount;
+                    }
+                }
+            });
+
+            const dailyNetBalance = dailyIncome - dailyExpense;
+
+            // Update displays using formatAmount
+            dailyIncomeDisplay.textContent = formatAmount(dailyIncome);
+            dailyExpenseDisplay.textContent = formatAmount(dailyExpense);
+            dailyNetBalanceDisplay.textContent = formatAmount(dailyNetBalance);
+
+            dailyNetBalanceDisplay.classList.remove('text-green-600', 'text-red-600', 'text-blue-600');
+            if (dailyNetBalance > 0) {
+                dailyNetBalanceDisplay.classList.add('text-green-600');
+            } else if (dailyNetBalance < 0) {
+                dailyNetBalanceDisplay.classList.add('text-red-600');
+            } else {
+                dailyNetBalanceDisplay.classList.add('text-blue-600');
+            }
+
+            dailyTransactionsSummaryList.innerHTML = '';
+            if (dailyTransactions.length === 0) {
+                dailyTransactionsSummaryList.innerHTML = '<p class="text-gray-500 text-center">ဤနေ့အတွက် မှတ်တမ်းများ မရှိသေးပါ။</p>';
+            } else {
+                dailyTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                dailyTransactions.forEach(entry => {
+                    dailyTransactionsSummaryList.appendChild(createTransactionListItem(entry, false));
+                });
+            }
+        }
+
+        // --- Monthly Summary Modal Logic ---
+        // monthlySummaryViewBtn has been removed from HTML.
+        // The modal still exists and can be invoked programmatically if needed.
+        monthlySummaryMonthPicker.addEventListener('change', () => {
+            calculateAndDisplayMonthlySummary(monthlySummaryYearPicker.value, monthlySummaryMonthPicker.value);
+        });
+        monthlySummaryYearPicker.addEventListener('change', () => {
+            calculateAndDisplayMonthlySummary(monthlySummaryYearPicker.value, monthlySummaryMonthPicker.value);
+        });
+        cancelMonthlyModalBtn.addEventListener('click', hideMonthlySummaryModal);
+
+        function hideMonthlySummaryModal() {
+            monthlySummaryModalOverlay.style.display = 'none';
+        }
+
+        function calculateAndDisplayMonthlySummary(year, month) {
+            const startDate = new Date(year, month, 1);
+            const endDate = new Date(year, parseInt(month) + 1, 0); // Last day of the month
+
+            let monthlyIncome = 0;
+            let monthlyExpense = 0;
+            let monthlyTransactions = [];
+
+            allEntries.forEach(entry => {
+                const entryDate = new Date(entry.date + 'T00:00:00'); // Add time component to ensure correct date comparison
+
+                if (entryDate >= startDate && entryDate <= endDate) {
+                    monthlyTransactions.push(entry);
+                    if (entry.type === 'income') {
+                        monthlyIncome += entry.amount;
+                    } else if (entry.type === 'expense') {
+                        monthlyExpense += entry.amount;
+                    }
+                }
+            });
+
+            const monthlyNetBalance = monthlyIncome - monthlyExpense;
+
+            // Update displays using formatAmount
+            monthlyIncomeDisplay.textContent = formatAmount(monthlyIncome);
+            monthlyExpenseDisplay.textContent = formatAmount(monthlyExpense);
+            monthlyNetBalanceDisplay.textContent = formatAmount(monthlyNetBalance);
+
+            monthlyNetBalanceDisplay.classList.remove('text-green-600', 'text-red-600', 'text-blue-600');
+            if (monthlyNetBalance > 0) {
+                monthlyNetBalanceDisplay.classList.add('text-green-600');
+            } else if (monthlyNetBalance < 0) {
+                monthlyNetBalanceDisplay.classList.add('text-red-600');
+            } else {
+                monthlyNetBalanceDisplay.classList.add('text-blue-600');
+            }
+
+            monthlyTransactionsSummaryList.innerHTML = '';
+            if (monthlyTransactions.length === 0) {
+                monthlyTransactionsSummaryList.innerHTML = '<p class="text-gray-500 text-center">ဤလအတွက် မှတ်တမ်းများ မရှိသေးပါ။</p>';
+            } else {
+                monthlyTransactions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                monthlyTransactions.forEach(entry => {
+                    monthlyTransactionsSummaryList.appendChild(createTransactionListItem(entry, false));
+                });
+            }
+        }
+
+        // --- Input Area Handling (Always visible, simplified) ---
+        // As the input area is always visible, there's no need for show/hide functions from nav buttons.
+        // The transactionNameInput will get focus on page load.
+
+        // --- Initial Load ---
+        window.onload = function() {
+            console.log("window.onload fired. Initializing page...");
+            showPage('dashboardPage'); // Only show dashboard page by default
+            transactionNameInput.focus(); // Focus on the name input for quick entry
+        };
+    </script>
+</body>
+</html>
+
